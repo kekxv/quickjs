@@ -34,7 +34,7 @@ jobs:
           make microbench
       - name: Package Artifacts
         run: |
-          zip -r quickjs-windows-msys2.zip qjs.exe qjsc.exe
+          zip -r quickjs-windows-msys2.zip qjs.exe qjsc.exe libquickjs.a quickjs.h quickjs-libc.h
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
