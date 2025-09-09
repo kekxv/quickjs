@@ -10,11 +10,11 @@ on:
       - '!doc/**'
       - '!examples/**'
       - '.github/workflows/ci.yml'
-      - '!.github/workflows/windows-artifacts.yml'
+      
   push:
     branches:
       - '*'
-
+      - '!.github/workflows/windows-artifacts.yml'
 jobs:
   linux:
     name: Linux (Ubuntu)
