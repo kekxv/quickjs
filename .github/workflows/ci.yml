@@ -10,6 +10,7 @@ on:
       - '!doc/**'
       - '!examples/**'
       - '.github/workflows/ci.yml'
+      - '!.github/workflows/windows-artifacts.yml'
   push:
     branches:
       - '*'
