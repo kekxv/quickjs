@@ -56,10 +56,12 @@ jobs:
           echo "Step 2: Identifying libraries to merge..."
           LIBS_TO_MERGE=(
             "../libquickjs.a"
-            "$(gcc -print-file-name=libpthread.a)"
-            "$(gcc -print-file-name=libmingwex.a)"
-            "$(gcc -print-file-name=libgcc.a)"
-            "$(gcc -print-file-name=libm.a)"
+            "$(gcc -print-file-name=libpthread.a)"    # POSIX 线程
+            "$(gcc -print-file-name=libmingw32.a)"    # MinGW 核心库 (启动代码, etc.)
+            "$(gcc -print-file-name=libmingwex.a)"    # MinGW 扩展库 (POSIX 兼容函数)
+            "$(gcc -print-file-name=libgcc.a)"        # GCC 运行时支持 (整数运算等)
+            "$(gcc -print-file-name=libucrt.a)"       # Universal C Runtime (关键！包含 snprintf, stat 等)
+            "$(gcc -print-file-name=libm.a)"          # 数学库
           )
           
           echo "The following libraries will be merged into $FAT_LIB_NAME:"
