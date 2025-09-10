@@ -19,24 +19,87 @@ jobs:
         with:
           msystem: UCRT64
           update: true
-          install: git make zip mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-dlfcn
+          install: git make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-dlfcn
+      
       - name: Build
         run: |
-           make -j$(getconf _NPROCESSORS_ONLN) CONFIG_WERROR=y
+          make -j$(getconf _NPROCESSORS_ONLN) CONFIG_WERROR=y
+          
       - name: Stats
         run: |
           ./qjs -qd
+          
       - name: Run built-in tests
         run: |
           make test
+          
       - name: Run microbench
         run: |
           make microbench
-      - name: Package Artifacts
+          
+      - name: Create Fat Static Library
+        id: create_fat_lib
         run: |
-          zip -r quickjs-windows-msys2.zip qjs.exe qjsc.exe libquickjs.a quickjs.h quickjs-libc.h
+          set -e
+          echo "Creating a fat static library (libquickjs-fat.a)..."
+          
+          TEMP_DIR="fatlib_temp"
+          FAT_LIB_NAME="libquickjs-fat.a"
+          
+          # 1. 创建一个临时工作目录
+          echo "Step 1: Creating temporary directory '$TEMP_DIR'..."
+          rm -rf "$TEMP_DIR"
+          mkdir "$TEMP_DIR"
+          cd "$TEMP_DIR"
+          
+          # 2. 确定需要合并的库的完整路径
+          echo "Step 2: Identifying libraries to merge..."
+          LIBS_TO_MERGE=(
+            "../libquickjs.a"
+            "$(gcc -print-file-name=libpthread.a)"
+            "$(gcc -print-file-name=libmingwex.a)"
+            "$(gcc -print-file-name=libgcc.a)"
+            "$(gcc -print-file-name=libm.a)"
+          )
+          
+          echo "The following libraries will be merged into $FAT_LIB_NAME:"
+          for lib in "${LIBS_TO_MERGE[@]}"; do
+            echo " - $lib"
+          done
+          
+          # 3. 提取所有库中的对象文件 (.o)
+          echo "Step 3: Extracting all object files..."
+          for lib_path in "${LIBS_TO_MERGE[@]}"; do
+            if [ -f "$lib_path" ]; then
+              echo "--> Extracting from $lib_path"
+              ar x "$lib_path"
+            else
+              echo "--> WARNING: Library not found, skipping: $lib_path"
+            fi
+          done
+          
+          # 4. 将所有提取出的 .o 文件重新打包成一个新的静态库
+          echo "Step 4: Creating the new fat archive..."
+          ar crs "../$FAT_LIB_NAME" *.o
+          
+          # 5. 清理临时目录
+          echo "Step 5: Cleaning up..."
+          cd ..
+          rm -rf "$TEMP_DIR"
+          
+          echo "Successfully created $FAT_LIB_NAME."
+          echo "--- File sizes ---"
+          ls -lh libquickjs.a $FAT_LIB_NAME
+          echo "------------------"
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: quickjs-windows-msys2.zip
-          path: quickjs-windows-msys2.zip
+          path: |
+            qjs.exe 
+            qjsc.exe 
+            libquickjs.a 
+            libquickjs-fat.a
+            quickjs.h 
+            quickjs-libc.h
