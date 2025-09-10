@@ -41,7 +41,7 @@ jobs:
         id: create_fat_lib
         run: |
           set -e
-          echo "Creating a fat static library (libquickjs-fat.a)..."
+          echo "Creating a comprehensive fat static library (libquickjs-fat.a)..."
           
           TEMP_DIR="fatlib_temp"
           FAT_LIB_NAME="libquickjs-fat.a"
@@ -52,21 +52,21 @@ jobs:
           mkdir "$TEMP_DIR"
           cd "$TEMP_DIR"
           
-          # 2. 确定需要合并的库的完整路径
-          echo "Step 2: Identifying libraries to merge..."
+          # 2. 确定需要合并的所有库的完整路径
+          echo "Step 2: Identifying all required libraries to merge..."
           LIBS_TO_MERGE=(
             "../libquickjs.a"
-            "$(gcc -print-file-name=libpthread.a)"    # POSIX 线程
-            "$(gcc -print-file-name=libmingw32.a)"    # MinGW 核心库 (启动代码, etc.)
-            "$(gcc -print-file-name=libmingwex.a)"    # MinGW 扩展库 (POSIX 兼容函数)
-            "$(gcc -print-file-name=libgcc.a)"        # GCC 运行时支持 (整数运算等)
-            "$(gcc -print-file-name=libucrt.a)"       # Universal C Runtime (关键！包含 snprintf, stat 等)
-            "$(gcc -print-file-name=libm.a)"          # 数学库
+            "$(gcc -print-file-name=libpthread.a)"
+            "$(gcc -print-file-name=libmingw32.a)"
+            "$(gcc -print-file-name=libmingwex.a)"
+            "$(gcc -print-file-name=libgcc.a)"
+            "$(gcc -print-file-name=libucrt.a)"
+            "$(gcc -print-file-name=libm.a)"
           )
           
           echo "The following libraries will be merged into $FAT_LIB_NAME:"
           for lib in "${LIBS_TO_MERGE[@]}"; do
-            echo " - $lib"
+            if [ -f "$lib" ]; then echo " - $lib"; else echo " - WARNING: $lib NOT FOUND."; fi
           done
           
           # 3. 提取所有库中的对象文件 (.o)
@@ -75,14 +75,17 @@ jobs:
             if [ -f "$lib_path" ]; then
               echo "--> Extracting from $lib_path"
               ar x "$lib_path"
-            else
-              echo "--> WARNING: Library not found, skipping: $lib_path"
             fi
           done
           
           # 4. 将所有提取出的 .o 文件重新打包成一个新的静态库
-          echo "Step 4: Creating the new fat archive..."
-          ar crs "../$FAT_LIB_NAME" *.o
+          #    使用 find 和 xargs 来避免 "Argument list too long" 错误
+          echo "Step 4: Creating the new fat archive using find and xargs..."
+          
+          # `find` 列出所有 .o 文件，用 null 字符分隔 (最安全的方式)
+          # `xargs -0` 读取 null 分隔的列表，并分块执行 ar 命令
+          # `ar crs` c=创建, r=替换, s=创建索引
+          find . -maxdepth 1 -name "*.o" -print0 | xargs -0 ar crs "../$FAT_LIB_NAME"
           
           # 5. 清理临时目录
           echo "Step 5: Cleaning up..."
